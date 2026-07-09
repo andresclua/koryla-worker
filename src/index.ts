@@ -190,10 +190,11 @@ export default {
     if (!variant) return fetch(request)
 
     // Proxy to variant URL — no redirect, no flicker
-    const targetUrl = new URL(request.url)
-    targetUrl.pathname = getPathname(variant.target_url)
-
-    const response = await fetch(new Request(targetUrl.toString(), request))
+    const response = await fetch(variant.target_url, {
+      method: request.method,
+      headers: request.headers,
+      body: request.method !== 'GET' && request.method !== 'HEAD' ? request.body : undefined,
+    })
     const newResponse = new Response(response.body, response)
 
     if (isNewSession) {
