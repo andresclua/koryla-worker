@@ -1,0 +1,13 @@
+name = "koryla-worker"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+KORYLA_API_URL = "https://koryla.com"
+# KORYLA_API_KEY is a secret — never commit it. Set it via:
+#   wrangler secret put KORYLA_API_KEY
+
+[[kv_namespaces]]
+binding = "KORYLA_CONFIG"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
