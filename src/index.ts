@@ -72,35 +72,38 @@ function parseCookies(header: string | null): Record<string, string> {
   )
 }
 
-async function postEvent(env: Env, payload: {
+async function postEvent(env: Env, host: string, payload: {
   experiment_id: string
   variant_id: string
   session_id: string
   event_type: 'impression' | 'conversion'
 }) {
   try {
-    await fetch(`${env.KORYLA_API_URL}/api/worker/event`, {
+    const res = await fetch(`${env.KORYLA_API_URL}/api/worker/event`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${env.KORYLA_API_KEY}`,
+        'X-Koryla-Host': host,
       },
       body: JSON.stringify(payload),
     })
+    if (res.status === 403) console.warn(`[koryla] ${await res.text()}`)
   } catch {
     // fire-and-forget — never break the site
   }
 }
 
-async function getConfig(env: Env): Promise<Experiment[]> {
+async function getConfig(env: Env, host: string): Promise<Experiment[]> {
   const cached = await env.KORYLA_CONFIG.get('experiments', 'json')
   if (cached) return cached as Experiment[]
 
   let experiments: Experiment[]
   try {
     const res = await fetch(`${env.KORYLA_API_URL}/api/worker/config?type=edge`, {
-      headers: { Authorization: `Bearer ${env.KORYLA_API_KEY}` },
+      headers: { Authorization: `Bearer ${env.KORYLA_API_KEY}`, 'X-Koryla-Host': host },
     })
+    if (res.status === 403) console.warn(`[koryla] ${await res.text()}`)
     if (!res.ok) return []
     experiments = await res.json() as Experiment[]
   } catch {
@@ -137,7 +140,7 @@ export default {
       isNewSession = true
     }
 
-    const experiments = await getConfig(env)
+    const experiments = await getConfig(env, url.hostname)
 
     // Check conversion URLs
     for (const exp of experiments) {
@@ -147,7 +150,7 @@ export default {
         const variantId = cookies[getCookieName(exp.id)]
         if (variantId) {
           ctx.waitUntil(
-            postEvent(env, {
+            postEvent(env, url.hostname, {
               experiment_id: exp.id,
               variant_id: variantId,
               session_id: sessionId,
@@ -209,7 +212,7 @@ export default {
 
       ctx.waitUntil(
         Promise.all([
-          postEvent(env, {
+          postEvent(env, url.hostname, {
             experiment_id: experiment.id,
             variant_id: variant.id,
             session_id: sessionId,
